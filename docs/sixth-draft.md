@@ -224,6 +224,7 @@ Each Condition represents one external runtime dependency requirement.
 | `name` | string | NO | Unique Condition name within the profile |
 | `optional` | boolean | NO | Whether the Condition is optional. Defaults to `false` |
 | `kind` | string | YES | Extension-defined integration classification |
+| `extension` | string | NO | Selects the extension defining this Condition's `kind`, when ambiguous |
 | `interface` | object | YES | Workload-facing interface requirement |
 
 Condition shape:
@@ -241,7 +242,11 @@ conditions:
 
 `conditions[].optional`, when omitted, MUST be interpreted as `false`.
 
-`conditions[].kind` MUST be a non-empty string and MUST be defined by exactly one resolved extension.
+`conditions[].kind` MUST be a non-empty string and MUST be defined by at least one resolved extension.
+
+`conditions[].extension`, when present, MUST exactly equal one identifier in the profile's `extensions` array, and that extension MUST define `conditions[].kind`.
+
+When more than one resolved extension defines `conditions[].kind`, `conditions[].extension` selects which definition this Condition resolves against. When `conditions[].extension` is absent, the Condition resolves against the first matching definition in extension resolution order.
 
 `conditions[].interface` MUST be an object.
 
@@ -555,6 +560,8 @@ A profile is invalid if the resolved extension set contains more than one defini
 
 Two definitions conflict even when they are identical.
 
+Condition `kind` is exempt from this rule: more than one resolved extension MAY define the same `kind`. A Condition referencing an ambiguous `kind` resolves using `conditions[].extension`, or the first matching definition in extension resolution order when `conditions[].extension` is absent.
+
 An extension that uses vocabulary defined by another extension MUST declare a dependency on that extension. It MUST NOT redefine that vocabulary in the same definition scope.
 
 An extension MAY define vocabulary with overlapping purpose when it uses a distinct name or definition scope.
@@ -631,7 +638,7 @@ Condition names, when present, MUST be unique within the profile.
 
 A profile is invalid if:
 
-- A Condition `kind` is not defined by exactly one resolved extension
+- A Condition `kind` is not defined by at least one resolved extension, or its `extension` does not resolve to exactly one definition
 - An `interface.type` is not defined by exactly one resolved extension for the declared `kind`
 - An extension-defined Condition field is not defined by exactly one resolved extension for its scope
 - An extension-defined interface field is not defined by exactly one resolved extension for its scope
@@ -648,12 +655,12 @@ Validators SHOULD distinguish:
 | Level | Description |
 | ----- | ----------- |
 | **Structural validity** | The document satisfies the core shape and type rules |
-| **Extension-resolved validity** | All extensions resolve and all vocabulary has exactly one definition in scope |
+| **Extension-resolved validity** | All extensions resolve and all vocabulary has exactly one definition in scope, except Condition `kind`, which may resolve to more than one definition and is disambiguated by `extension` |
 | **Semantic validity** | The profile satisfies all applicable extension JSON Schema validations |
 
 A core-only profile with an empty `conditions` array can be structurally valid.
 
-A profile with non-empty `conditions` is not extension-resolved valid unless every Condition kind, interface type, extension-defined field, and extension-defined value resolves to exactly one definition.
+A profile with non-empty `conditions` is not extension-resolved valid unless every Condition `kind` resolves to exactly one definition (directly, or disambiguated by `extension`), and every interface type, extension-defined field, and extension-defined value resolves to exactly one definition.
 
 ## 8.4 Validator Diagnostics
 
@@ -881,4 +888,36 @@ conditions:
         - property: token
           name: PAYMENTS_API_TOKEN
           sensitive: true
+```
+
+## 10.5 Profile With Ambiguous Kind
+
+Two independently authored extensions both define `kind: cache`. The profile disambiguates the first Condition with `extension`; the second Condition omits it and resolves against the first matching definition in extension resolution order.
+
+```yaml
+apiVersion: runtimeconditions.io/v1alpha1
+kind: RuntimeConditionsProfile
+
+metadata:
+  name: checkout-service
+
+workload:
+  uri: https://github.com/example-org/checkout-service
+  version: v1.2.3
+
+extensions:
+  - https://redis-vendor.example.com/extensions/redis/0.1.0/runtimeconditions.extension.yaml
+  - https://memcached-vendor.example.com/extensions/memcached/0.1.0/runtimeconditions.extension.yaml
+
+conditions:
+  - name: primary-cache
+    kind: cache
+    extension: https://redis-vendor.example.com/extensions/redis/0.1.0/runtimeconditions.extension.yaml
+    interface:
+      type: redis_protocol
+
+  - name: fallback-cache
+    kind: cache
+    interface:
+      type: memcached_protocol
 ```
