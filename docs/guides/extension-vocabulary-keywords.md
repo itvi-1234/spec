@@ -32,6 +32,7 @@ Use `kinds` when the extension introduces a new Condition category.
 spec:
   kinds:
     - name: aws.object_store
+      description: The workload stores and reads objects in an object store.
 ```
 
 A kind is the outer integration category. It should be stable enough for adapters to route to platform capabilities. Avoid creating a kind for every operation unless each operation has materially different runtime requirements.
@@ -49,6 +50,7 @@ spec:
   interfaceTypes:
     - name: aws.s3
       targetKind: aws.object_store
+      description: An Amazon S3 bucket.
 ```
 
 This defines `interface.type: aws.s3` only for `kind: aws.object_store`.
@@ -216,6 +218,23 @@ spec:
 
 Schemas apply additively. A Condition must satisfy every schema whose scope matches its `kind` and `interface.type`.
 
+Describe each property with the JSON Schema `description` annotation. Descriptions do not change validation; first-party tooling copies them into the generated language bindings (Godoc, Javadoc, Python docstrings, JSDoc) and can show them in an extension catalog. Write them for the developer who declares the Condition: what the value means, an example, and when to leave it out.
+
+```yaml
+      schema:
+        type: object
+        properties:
+          interface:
+            type: object
+            description: How the workload reaches the cache.
+            properties:
+              engine:
+                enum: [redis, memcached]
+                description: The cache engine the workload needs. Leave it out if any key/value engine works.
+```
+
+A `description` beside `$ref` documents that use of the referenced definition and takes precedence over the definition's own description.
+
 Prefer `fieldValues` for portable enum-like values and `schemas` for object shape. Most non-trivial fields need both:
 
 - `conditionFields` defines the field root.
@@ -257,6 +276,7 @@ Before treating an extension as first-party tooling-ready:
 - Make every `fieldValues.field` path resolve to a condition or interface field in the declared target scope.
 - Use `fieldValues` for portable string values, not deployment-specific data.
 - Use JSON Schema to validate nested object shape.
+- Give every kind, interface type, and schema property a `description`.
 - Scope schemas to resolved kinds and interface types.
 - Avoid overlapping `conditionFields` definitions.
 - Keep declaration bindings or package manifests separate from extension vocabulary.
