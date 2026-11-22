@@ -415,6 +415,7 @@ Each `kinds` entry MUST include:
 | Field | Type | Required | Description |
 | ----- | ---- | -------- | ----------- |
 | `name` | string | YES | Condition kind defined by the extension |
+| `description` | string | NO | Human-readable explanation of the kind |
 
 Each `interfaceTypes` entry MUST include:
 
@@ -422,6 +423,7 @@ Each `interfaceTypes` entry MUST include:
 | ----- | ---- | -------- | ----------- |
 | `name` | string | YES | Interface type defined by the extension |
 | `targetKind` | string | YES | Condition kind for which the interface type is valid |
+| `description` | string | NO | Human-readable explanation of the interface type |
 
 Each `conditionFields` entry MUST include:
 
@@ -467,6 +469,8 @@ Each `schemas[].schema` object MUST be a valid JSON Schema using the JSON Schema
 Each extension schema validates a Condition object after the profile has been converted to the JSON data model.
 
 A schema applies to a Condition when all declared scope fields match the Condition. Omitted scope fields do not restrict applicability.
+
+`kinds[].description`, `interfaceTypes[].description`, `schemas[].description`, and the JSON Schema `title` and `description` annotations inside `schemas[].schema` are documentation. When present, each `description` MUST be a non-empty string. Documentation MUST NOT change validation results. Tools MAY use it to generate language binding documentation and extension catalog pages. Extension authors SHOULD describe every kind, every interface type, and every property defined in `schemas[].schema`, in terms a workload developer can act on.
 
 ## 6.5 Extension Definition Example
 
